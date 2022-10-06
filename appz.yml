@@ -1,7 +1,7 @@
 app:
     name: prometheus
     code: prometheus
-    notify: appzdev@cloudbourne.co
+    notify: ssalim@cloudbourne.co
 
 build:
     version: 2.17
@@ -11,7 +11,7 @@ build:
     image_template: prometheus-2.17
 
 deploy:
-    context: monitoring/DEV
+    context: sijusalim/DEV
     type: statefulset
     replicas: 1
     port:
@@ -26,5 +26,5 @@ volumes:
     
   
 properties:
-    revision : 88
+    revision : 89
     
