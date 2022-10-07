@@ -9,7 +9,8 @@ alerting:
   alertmanagers:
   - static_configs:
     - targets:
-       - alert-manager-0-2:9093
+      # - alertmanager:9093
+       - 192.168.99.102:9093
 
 # Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
 rule_files:
@@ -21,45 +22,131 @@ rule_files:
 scrape_configs:
   # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
   - job_name: 'prometheus'
+
+    # metrics_path defaults to '/metrics'
+    # scheme defaults to 'http'.
+
     static_configs:
     - targets: ['localhost:9090']
   
-      
-  #- job_name: 'node-exporter'
+  - job_name: 'node_exporter'
     static_configs:
-    - targets: ['172.31.17.121:9100','172.31.28.19:9100','172.31.25.240:9100','172.31.31.27:9100','172.31.24.133:9100','192.168.184.194:9100','192.168.96.134:9100','192.168.130.193:9100']
+            - targets: ['192.168.66.148:9100']
+
     metric_relabel_configs:
       - source_labels: ['nodename']
-        regex: '(engine.master)'
+        regex: 'ubuntu'
         target_label: nodename
-        replacement: appz-${1}
-      - source_labels: ['nodename']
-        regex: 'k8s.(.*)'
-        target_label: nodename
-        replacement: appz-${1}
-      - source_labels: ['nodename']
-        regex: 'ip-192-168-103-189.us-east-2.compute.internal'
-        target_label: nodename
-        replacement: appz-qa-worker-1
-      - source_labels: ['nodename']
-        regex: 'ip-192-168-163-143.us-east-2.compute.internal'
-        target_label: nodename
-        replacement: appz-qa-worker-2
-      - source_labels: ['nodename']
-        regex: 'ip-192-168-130-193.us-east-2.compute.internal'
-        target_label: nodename
-        replacement: appz-prod-worker-1 
- # - job_name: 'kube-state-metrics'
+        replacement: node01
+ 
+
+  - job_name: 'mongoexporter'
     static_configs:
-    - targets: ['kube-state-metrics.kube-system.svc.cluster.local:8080']
-    
- - job_name: 'mongoexporter'
-    static_configs:
-            - targets: ['mongo-4.4-0:9216', 'mongo-4.4-1:9217', 'mongo-4.4-2:9218']
+            - targets: ['mongo-4.4-0:9216']
               labels:
                 cluster: myCluster
-                
- # - job_name: 'kubernetes-cadvisor'
+
+  - job_name: 'rabbitmq_exporter'
+    static_configs:
+            - targets: ['rabbitmq:15692']
+
+  - job_name: 'redis'
+    static_configs:
+            - targets: ['192.168.99.102:9121']
+
+  - job_name: 'mysql'
+    kubernetes_sd_configs:
+    - role: endpoints
+    
+    relabel_configs:
+    - source_labels: [__meta_kubernetes_namespace]
+      action: replace
+      target_label: namespace
+    - source_labels: [__meta_kubernetes_pod_name]
+      action: replace
+      target_label: pod
+        
+    - source_labels: [pod]
+      regex: mysql-5-7.*|mariadb-master-10-4.*
+      action: keep  
+
+    - source_labels: [__address__]
+      target_label: __address__
+      regex: '([^:]+)(:[3306]+)?'
+      replacement: '${1}'
+      action: drop
+      
+    - source_labels: [__address__]
+      regex: '.*'
+      target_label: instance
+      replacement: 'AppZ${1}'
+
+  - job_name: 'nodejs'
+    kubernetes_sd_configs:
+    - role: endpoints
+    relabel_configs:
+    - source_labels: [__meta_kubernetes_namespace]
+      action: replace
+      target_label: namespace
+
+    - source_labels: [__meta_kubernetes_pod_name]
+      action: replace
+      target_label: pod
+
+    - source_labels: [pod]
+      regex: '((.*)hellonode(.*))'
+      action: keep
+
+    - source_labels: [__address__]
+      target_label: __address__
+      regex: '([^:]+)(:[3000]+)?'
+      #regex: '([^:]+)(:[80]+)?'
+      replacement: '${1}'
+      action: drop
+
+    - source_labels: [__address__]
+      target_label: __address__
+      regex: '(.*):80'
+      replacement: '${1}'
+      action: drop
+
+    - source_labels: [__address__]
+      regex: '.*'
+      target_label: instance
+      replacement: 'Appz${1}' 
+
+  - job_name: 'postgres_exporter'
+    kubernetes_sd_configs:
+    - role: endpoints
+    
+    relabel_configs:
+    - source_labels: [__meta_kubernetes_namespace]
+      action: replace
+      target_label: namespace
+    - source_labels: [__meta_kubernetes_pod_name]
+      action: replace
+      target_label: pod
+      
+    - source_labels: [pod]
+      regex: postgres-ha-13.*
+      action: keep  
+
+    - source_labels: [__address__]
+      target_label: __address__
+      regex: '([^:]+)(:[5432]+)?'
+      replacement: '${1}'
+      action: drop
+      
+    - source_labels: [__address__]
+      regex: '.*'
+      target_label: instance
+      replacement: 'Appz${1}'
+
+  - job_name: 'kube-state-metrics'
+    static_configs:
+    - targets: ['kube-state-metrics.kube-system.svc.cluster.local:8080']
+
+  - job_name: 'kubernetes-cadvisor'
     scheme: https
     tls_config:
       ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
@@ -75,5 +162,37 @@ scrape_configs:
       regex: (.+)
       target_label: __metrics_path__
       replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
-      
- 
+
+  - job_name: 'yace'
+    scrape_interval: 60s
+    static_configs:
+    - targets: ['172.31.17.93:5000']
+
+  - job_name: 'jmeter'
+    static_configs:
+    - targets: ['192.168.50.133:9270']
+
+  - job_name: 'blackbox'
+    metrics_path: /probe
+    params:
+     module: [http_2xx] 
+    static_configs:
+    - targets:
+#       - https://google.com/doesntexist
+#       - https://www.ecloudcontrol.com
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 192.168.99.102:9115
+
+  - job_name: 'tower'
+    metrics_path: /api/v2/metrics
+    scrape_interval: 5s
+    scheme: https
+    bearer_token: iH7m8NMJHqPoWQd5Z4va4Fnj6kfJjA #Token
+    static_configs:
+    - targets:
+       - nagesh-dev-awx-20.32d430c5.lowtouch.cloud
