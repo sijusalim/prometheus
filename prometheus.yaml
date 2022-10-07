@@ -42,7 +42,7 @@ scrape_configs:
 
   - job_name: 'mongoexporter'
     static_configs:
-            - targets: ['mongo-4.4-0:9216']
+            - targets: ['mongo-4.4:9216']
               labels:
                 cluster: myCluster
 
